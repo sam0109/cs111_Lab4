@@ -425,7 +425,7 @@ static void register_files(task_t *tracker_task, const char *myalias)
 		    || (namelen > 1 && ent->d_name[namelen - 1] == '~'))
 			continue;
 
-		osp2p_writef(tracker_task->peer_fd, "HAVE %s\n", ent->d_name);
+		osp2p_writef(tracker_task->peer_fd, "HAVE %s 6D661A13EB462F6ECE20431595902EC6\n", ent->d_name);
 		messagepos = read_tracker_response(tracker_task);
 		if (tracker_task->buf[messagepos] != '2')
 			error("* Tracker error message while registering '%s':\n%s",
