@@ -74,6 +74,7 @@ typedef struct task {
 				// function initializes this list;
 				// task_pop_peer() removes peers from it, one
 				// at a time, if a peer misbehaves.
+
 	char md5sum[16]; //md5sum of the file to be checked at the end
 } task_t;
 
@@ -767,6 +768,22 @@ static void task_upload(task_t *t)
 	task_free(t);
 }
 
+char *md5DigestToHexString(md5_byte_t *binaryDigest)
+{
+	int di;
+	char *szReturn;
+
+	// allocate 32 + 1 bytes for our return string
+	szReturn = malloc((32 + 1) * sizeof *szReturn);
+
+	
+	for (di = 0; di < 16; ++di)
+	{
+		sprintf(szReturn + di * 2, "%02x", binaryDigest[di]);
+	}
+
+	return szReturn;
+}
 
 // main(argc, argv)
 //	The main loop!
@@ -778,6 +795,11 @@ int main(int argc, char *argv[])
 	char *s;
 	const char *myalias;
 	struct passwd *pwent;
+	struct md5_state_s md5state;
+	FILE * fp;
+	size_t read_file_size;
+	char read_file[1000];
+	md5_byte_t digest[16];
 	pid_t pid;
 
 	// Default tracker is read.cs.ucla.edu
@@ -857,6 +879,21 @@ int main(int argc, char *argv[])
 			if(pid == 0)
 			{
 				task_download(t, tracker_task);
+				md5_init(&md5state);
+				fp = fopen(tracker_task->filename, "r");
+
+				do
+				{
+					read_file_size = fread(read_file, 1, 1000, fp);
+  					md5_append(&md5state, (const md5_byte_t *) read_file, 1000);
+				} while(read_file_size > 0);
+				
+				md5_finish(&md5state, digest);
+
+				if(strcmp(md5DigestToHexString(digest), tracker_task->md5sum) != 0){
+					error("MD5s are different, file is corrupted!\n");
+				}
+
 				exit(0);
 			}
 			else if (pid < 0)
