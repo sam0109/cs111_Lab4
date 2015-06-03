@@ -513,7 +513,7 @@ task_t *start_download(task_t *tracker_task, const char *filename)
 		tracker_task->md5sum[0] = '\0';
 	}
 	else {
-		strncpy(t->checksum, tracker_task->buf, MD5_TEXT_DIGEST_SIZE);
+		strncpy(t->md5sum, tracker_task->buf, 17);
 	}
 
  exit:
@@ -629,7 +629,7 @@ static void task_download(task_t *t, task_t *tracker_task)
 		message("* Downloaded '%s' was %lu bytes long\n",
 			t->disk_filename, (unsigned long) t->total_written);
 
-		if (md5_finish_text(t->md5_state, md5, 1) == 16 && strncmp(t->md5sum, md5sum, 16) == 0)
+		if (md5_finish_text(t->state, md5sum, 1) == 16 && strncmp(t->md5sum, md5sum, 16) == 0)
 			message("* MD5 SUM matched for '%s'\n", t->filename);
 		else {
 			error("* MD5 SUM mismatched for '%s'\n", t->filename);
@@ -784,23 +784,6 @@ static void task_upload(task_t *t)
 	task_free(t);
 }
 
-char *md5DigestToHexString(md5_byte_t *binaryDigest)
-{
-	int di;
-	char *szReturn;
-
-	// allocate 32 + 1 bytes for our return string
-	szReturn = malloc((32 + 1) * sizeof *szReturn);
-
-	
-	for (di = 0; di < 16; ++di)
-	{
-		sprintf(szReturn + di * 2, "%02x", binaryDigest[di]);
-	}
-
-	return szReturn;
-}
-
 // main(argc, argv)
 //	The main loop!
 int main(int argc, char *argv[])
@@ -811,11 +794,6 @@ int main(int argc, char *argv[])
 	char *s;
 	const char *myalias;
 	struct passwd *pwent;
-	struct md5_state_s md5state;
-	FILE * fp;
-	size_t read_file_size;
-	char read_file[1000];
-	md5_byte_t digest[16];
 	pid_t pid;
 
 	// Default tracker is read.cs.ucla.edu
