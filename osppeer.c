@@ -847,7 +847,7 @@ int main(int argc, char *argv[])
 	listen_task = start_listen();
 	register_files(tracker_task, myalias);
 
-	/*
+	
 	// First, download files named on command line.
 	for (; argc > 1; argc--, argv++)
 		if ((t = start_download(tracker_task, argv[1])))
@@ -877,7 +877,7 @@ int main(int argc, char *argv[])
 			break;
 		}
 	}
-	*/
+	
 	
 	// Then accept connections from other peers and upload files to them!
 	while ((t = task_listen(listen_task)))
