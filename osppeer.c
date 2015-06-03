@@ -75,7 +75,8 @@ typedef struct task {
 				// task_pop_peer() removes peers from it, one
 				// at a time, if a peer misbehaves.
 
-	char md5sum[16]; //md5sum of the file to be checked at the end
+	char md5sum[17]; //md5sum of the file to be checked at the end
+	md5_state_t* state;
 } task_t;
 
 
@@ -98,6 +99,10 @@ static task_t *task_new(tasktype_t type)
 
 	strcpy(t->filename, "");
 	strcpy(t->disk_filename, "");
+
+	t->state = (md5_state_t *) malloc(sizeof(md5_state_t));
+	md5_init(t->state);
+	memset(t->md5sum, 0, 17);
 
 	return t;
 }
@@ -167,10 +172,14 @@ taskbufresult_t read_to_taskbuf(int fd, task_t *t)
 	unsigned tailpos = (t->tail % TASKBUFSIZ);
 	ssize_t amt;
 
+
 	if (t->head == t->tail || headpos < tailpos)
 		amt = read(fd, &t->buf[tailpos], TASKBUFSIZ - tailpos);
 	else
 		amt = read(fd, &t->buf[tailpos], headpos - tailpos);
+
+	if (t->type == TASK_DOWNLOAD)
+		md5_append(t->state, (md5_byte_t *) &t->buf[tailpos], amt);
 
 	if (amt == -1 && (errno == EINTR || errno == EAGAIN
 			  || errno == EWOULDBLOCK))
@@ -499,15 +508,12 @@ task_t *start_download(task_t *tracker_task, const char *filename)
 
 	osp2p_writef(tracker_task->peer_fd, "MD5SUM %s\n", filename);
 	messagepos = read_tracker_response(tracker_task);
-	if (tracker_task->buf[2] != ' ') {			//means no md5 sum is reported for this file
-		error("* no md5sum for '%s', vulnerable to peer file corruption.\n", filename);
+	if (tracker_task->buf[messagepos] != '2') {			//means error in getting the md5 sum
+		error("* error getting md5sum for '%s', vulnerable to peer file corruption.\n", filename);
 		tracker_task->md5sum[0] = '\0';
 	}
 	else {
-		while(i < 16){
-			tracker_task->md5sum[i] = tracker_task->buf[i];
-			i++;
-		}
+		strncpy(t->checksum, tracker_task->buf, MD5_TEXT_DIGEST_SIZE);
 	}
 
  exit:
@@ -522,6 +528,8 @@ task_t *start_download(task_t *tracker_task, const char *filename)
 //	until a download is successful.
 static void task_download(task_t *t, task_t *tracker_task)
 {
+	char md5sum[17];
+	memset(md5sum, 0, 17);
 	int i, ret = -1;
 	assert((!t || t->type == TASK_DOWNLOAD)
 	       && tracker_task->type == TASK_TRACKER);
@@ -620,6 +628,14 @@ static void task_download(task_t *t, task_t *tracker_task)
 	if (t->total_written > 0) {
 		message("* Downloaded '%s' was %lu bytes long\n",
 			t->disk_filename, (unsigned long) t->total_written);
+
+		if (md5_finish_text(t->md5_state, md5, 1) == 16 && strncmp(t->md5sum, md5sum, 16) == 0)
+			message("* MD5 SUM matched for '%s'\n", t->filename);
+		else {
+			error("* MD5 SUM mismatched for '%s'\n", t->filename);
+			goto try_again;
+		}
+
 		// Inform the tracker that we now have the file,
 		// and can serve it to others!  (But ignore tracker errors.)
 		if (strcmp(t->filename, t->disk_filename) == 0) {
@@ -879,21 +895,6 @@ int main(int argc, char *argv[])
 			if(pid == 0)
 			{
 				task_download(t, tracker_task);
-				md5_init(&md5state);
-				fp = fopen(tracker_task->filename, "r");
-
-				do
-				{
-					read_file_size = fread(read_file, 1, 1000, fp);
-  					md5_append(&md5state, (const md5_byte_t *) read_file, 1000);
-				} while(read_file_size > 0);
-				
-				md5_finish(&md5state, digest);
-
-				if(strcmp(md5DigestToHexString(digest), tracker_task->md5sum) != 0){
-					error("MD5s are different, file is corrupted!\n");
-				}
-
 				exit(0);
 			}
 			else if (pid < 0)
