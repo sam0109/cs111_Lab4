@@ -845,6 +845,10 @@ int main(int argc, char *argv[])
 			{
 				error("Error: could not fork\n");
 			}
+			else
+			{
+				task_free(t);
+			}
 		}
 
 	int status;
@@ -869,6 +873,10 @@ int main(int argc, char *argv[])
 		else if (pid < 0)
 		{
 			error("Error: could not fork\n");
+		}
+		else
+		{
+			task_free(t);
 		}
 	}
 
