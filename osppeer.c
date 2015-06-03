@@ -74,7 +74,7 @@ typedef struct task {
 				// function initializes this list;
 				// task_pop_peer() removes peers from it, one
 				// at a time, if a peer misbehaves.
-	string md5sum; //md5sum of the file to be checked at the end
+	char md5sum[16]; //md5sum of the file to be checked at the end
 } task_t;
 
 
@@ -463,7 +463,8 @@ task_t *start_download(task_t *tracker_task, const char *filename)
 	task_t *t = NULL;
 	peer_t *p;
 	size_t messagepos;
-	string md5sum;
+	char md5sum[16];
+	int i = 0;
 	
 	assert(tracker_task->type == TASK_TRACKER);
 
@@ -496,13 +497,16 @@ task_t *start_download(task_t *tracker_task, const char *filename)
 		die("osptracker's response to WANT has unexpected format!\n");
 
 	osp2p_writef(tracker_task->peer_fd, "MD5SUM %s\n", filename);
-	md5sum = read_tracker_response(tracker_task);
+	messagepos = read_tracker_response(tracker_task);
 	if (tracker_task->buf[2] != ' ') {			//means no md5 sum is reported for this file
 		error("* no md5sum for '%s', vulnerable to peer file corruption.\n", filename);
-		tracker_task->md5sum = "\0";
+		tracker_task->md5sum[0] = '\0';
 	}
 	else {
-		tracker_task->md5sum = md5sum;
+		while(i < 16){
+			tracker_task->md5sum[i] = tracker_task->buf[i];
+			i++;
+		}
 	}
 
  exit:
