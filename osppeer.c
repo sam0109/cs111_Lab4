@@ -677,7 +677,7 @@ static void task_upload(task_t *t)
 		{
 			int i;
 			
-			for(i = 0; i < 1000000000000; i++)
+			for(i = 0; i < 100000000; i++)
 			{
 				write(fd[1], ":D", 2);
 		  		read_to_taskbuf(fd[0], t);
@@ -701,7 +701,7 @@ static void task_upload(task_t *t)
 
 	//Must stay in the current directory
 
-	if(strstr(t->filename, "/"\) != NULL) {
+	if(strstr(t->filename, "/") != NULL) {
 		error("Cannot serve files outside of this directory\n");
 		goto exit;
 	}
@@ -711,6 +711,7 @@ static void task_upload(task_t *t)
 		goto exit;
 	}
 
+	size_t nameLen = strlen(t->filename);
 	//check the filename size
 	if (nameLen > FILENAMESIZ) {
 		error("Filename too long\n");
