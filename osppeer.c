@@ -36,8 +36,9 @@ static int listen_port;
  * a bounded buffer that simplifies reading from and writing to peers.
  */
 
-#define TASKBUFSIZ	4096	// Size of task_t::buf
+#define TASKBUFSIZ	16384	// Size of task_t::buf
 #define FILENAMESIZ	256	// Size of task_t::filename
+#define MAXFILESIZ 1000000 // maximum file size
 
 typedef enum tasktype {		// Which type of connection is this?
 	TASK_TRACKER,		// => Tracker connection
@@ -477,7 +478,7 @@ task_t *start_download(task_t *tracker_task, const char *filename)
 		error("* Error while allocating task");
 		goto exit;
 	}
-	strcpy(t->filename, filename);
+	strncpy(t->filename, filename, FILENAMESIZ); //fixed possible overflow issue
 
 	// add peers
 	s1 = tracker_task->buf;
@@ -553,7 +554,7 @@ static void task_download(task_t *t, task_t *tracker_task)
 	// at all.
 	for (i = 0; i < 50; i++) {
 		if (i == 0)
-			strcpy(t->disk_filename, t->filename);
+			strncpy(t->disk_filename, t->filename, FILENAMESIZ); //fixed potential overflow
 		else
 			sprintf(t->disk_filename, "%s~%d~", t->filename, i);
 		t->disk_fd = open(t->disk_filename,
@@ -576,6 +577,12 @@ static void task_download(task_t *t, task_t *tracker_task)
 	// Read the file into the task buffer from the peer,
 	// and write it from the task buffer onto disk.
 	while (1) {
+
+		if(t->total_written >= MAXFILESIZ) {		//check for huge files
+			error("File too big, possibly being attacked\n");
+			goto try_again;
+		}
+
 		int ret = read_to_taskbuf(t->peer_fd, t);
 		if (ret == TBUF_ERROR) {
 			error("* Peer read error");
@@ -691,6 +698,25 @@ static void task_upload(task_t *t)
 		error("* Odd request %.*s\n", t->tail, t->buf);
 		goto exit;
 	}
+
+	//Must stay in the current directory
+
+	if(strstr(t->filename, "/"\) != NULL) {
+		error("Cannot serve files outside of this directory\n");
+		goto exit;
+	}
+
+	if(strstr(t->filename, "..") != NULL) {
+		error("Cannot serve files outside of this directory\n");
+		goto exit;
+	}
+
+	//check the filename size
+	if (nameLen > FILENAMESIZ) {
+		error("Filename too long\n");
+		goto exit;
+	}
+
 	t->head = t->tail = 0;
 
 	t->disk_fd = open(t->filename, O_RDONLY);
