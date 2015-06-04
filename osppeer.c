@@ -629,11 +629,13 @@ static void task_download(task_t *t, task_t *tracker_task)
 		message("* Downloaded '%s' was %lu bytes long\n",
 			t->disk_filename, (unsigned long) t->total_written);
 
-		if (md5_finish_text(t->state, md5sum, 1) == 16 && strncmp(t->md5sum, md5sum, 16) == 0)
+		if (md5_finish_text(t->state, md5sum, 1) == 16 && strncmp(t->md5sum, md5sum, 16) == 0){
 			message("* MD5 SUM matched for '%s'\n", t->filename);
+		}
 		else {
 			error("* MD5 SUM mismatched for '%s'\n", t->filename);
-			goto try_again;
+			error("* calculated MD5: '%s'\n", t->md5sum);
+			error("* retrieved MD5: '%s'\n", md5sum);
 		}
 
 		// Inform the tracker that we now have the file,
