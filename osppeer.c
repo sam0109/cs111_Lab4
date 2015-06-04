@@ -178,8 +178,7 @@ taskbufresult_t read_to_taskbuf(int fd, task_t *t)
 	else
 		amt = read(fd, &t->buf[tailpos], headpos - tailpos);
 
-	if (t->type == TASK_DOWNLOAD)
-		md5_append(t->state, (md5_byte_t *) &t->buf[tailpos], amt);
+	md5_append(t->state, (md5_byte_t *) &t->buf[tailpos], amt);
 
 	if (amt == -1 && (errno == EINTR || errno == EAGAIN
 			  || errno == EWOULDBLOCK))
@@ -473,7 +472,6 @@ task_t *start_download(task_t *tracker_task, const char *filename)
 	task_t *t = NULL;
 	peer_t *p;
 	size_t messagepos;
-	char md5sum[16];
 	int i = 0;
 	
 	assert(tracker_task->type == TASK_TRACKER);
