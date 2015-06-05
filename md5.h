@@ -96,8 +96,8 @@ void md5_finish(md5_state_t *pms, md5_byte_t digest[16]);
    length of exactly MD5_TEXT_DIGEST_SIZE.
    Returns the number of characters written.  Again, this will NOT include
    a terminating NUL. */
-#define MD5_TEXT_DIGEST_SIZE		22	/* min len */
-#define MD5_TEXT_DIGEST_MAX_SIZE	26	/* max len if !allow_at */
+#define MD5_TEXT_DIGEST_SIZE		16	/* min len */
+#define MD5_TEXT_DIGEST_MAX_SIZE	16	/* max len if !allow_at */
 int md5_finish_text(md5_state_t *pms, char *text_digest, int allow_at);
 
 #define md5_free(pms)		/* do nothing */
