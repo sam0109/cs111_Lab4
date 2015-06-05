@@ -179,6 +179,7 @@ taskbufresult_t read_to_taskbuf(int fd, task_t *t)
 		amt = read(fd, &t->buf[tailpos], headpos - tailpos);
 
 	md5_append(t->state, (md5_byte_t *) &t->buf[tailpos], amt);
+	printf("adding to the m5sum \n");
 
 	if (amt == -1 && (errno == EINTR || errno == EAGAIN
 			  || errno == EWOULDBLOCK))
