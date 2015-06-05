@@ -179,7 +179,6 @@ taskbufresult_t read_to_taskbuf(int fd, task_t *t)
 		amt = read(fd, &t->buf[tailpos], headpos - tailpos);
 
 	md5_append(t->state, (md5_byte_t *) &t->buf[tailpos], amt);
-	printf("adding to the m5sum\n");
 
 	if (amt == -1 && (errno == EINTR || errno == EAGAIN
 			  || errno == EWOULDBLOCK))
@@ -505,14 +504,13 @@ task_t *start_download(task_t *tracker_task, const char *filename)
 	if (s1 != tracker_task->buf + messagepos)
 		die("osptracker's response to WANT has unexpected format!\n");
 
-	osp2p_writef(tracker_task->peer_fd, "MD5SUM %s\n", filename);
+	osp2p_writef(tracker_task->peer_fd, "MD5SUM %s\n", t->filename);
 	messagepos = read_tracker_response(tracker_task);
 	if (tracker_task->buf[messagepos] != '2') {			//means error in getting the md5 sum
 		error("* error getting md5sum for '%s', vulnerable to peer file corruption.\n", filename);
-		tracker_task->md5sum[0] = '\0';
 	}
 	else {
-		strncpy(t->md5sum, tracker_task->buf, 17);
+		strncpy(t->md5sum, tracker_task->buf, 16);
 	}
 
  exit:
@@ -633,8 +631,8 @@ static void task_download(task_t *t, task_t *tracker_task)
 		}
 		else {
 			error("* MD5 SUM mismatched for '%s'\n", t->filename);
-			error("* calculated MD5: '%s'\n", t->md5sum);
-			error("* retrieved MD5: '%s'\n", md5sum);
+			error("* calculated MD5: '%s'\n", md5sum);
+			error("* retrieved MD5: '%s'\n", t->md5sum);
 		}
 
 		// Inform the tracker that we now have the file,
